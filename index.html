@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>?→</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #f8f8f6;
+      width: 100vw; height: 100vh;
+      overflow: hidden;
+    }
+    .stage {
+      position: relative;
+      width: 100vw; height: 100vh;
+    }
+    #ripple-canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1;
+      opacity: 0;
+      transition: opacity 1.2s ease;
+    }
+    #ripple-canvas.visible { opacity: 1; }
+
+    #vector-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 3;
+      opacity: 0;
+      transition: opacity 0.8s ease;
+    }
+    #vector-overlay.visible { opacity: 1; }
+
+    .node {
+      position: absolute;
+      border-radius: 50%;
+      overflow: hidden;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: width 0.7s ease, height 0.7s ease, left 0.7s ease, top 0.7s ease, opacity 0.5s ease;
+    }
+    .node img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      display: block;
+      pointer-events: none;
+    }
+    /* 輪郭をぼかす */
+    .node::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      box-shadow: inset 0 0 18px 10px #f8f8f6;
+      pointer-events: none;
+    }
+
+    #node-center {
+      z-index: 10;
+    }
+    .satellite {
+      z-index: 6;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .satellite.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  </style>
+</head>
+<body>
+<div class="stage">
+  <canvas id="ripple-canvas"></canvas>
+
+  <svg id="vector-overlay" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow-end" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="rgba(100,100,100,0.3)"/>
+      </marker>
+      <marker id="arrow-start" markerWidth="8" markerHeight="8" refX="2" refY="3" orient="auto-start-reverse">
+        <path d="M0,0 L0,6 L8,3 z" fill="rgba(100,100,100,0.3)"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <div class="node" id="node-center" onclick="handleCenterClick()">
+    <img src="image1-qveca.png" alt="?→">
+  </div>
+
+  <div class="node satellite" id="node-2" onclick="handleSatelliteClick('node-2')">
+    <img src="image2-inside.png" alt="内向きの?→">
+  </div>
+  <div class="node satellite" id="node-3" onclick="handleSatelliteClick('node-3')">
+    <img src="image3-outside.png" alt="外向きの?→">
+  </div>
+  <div class="node satellite" id="node-4" onclick="handleSatelliteClick('node-4')">
+    <img src="image4-infinity.png" alt="世界・宇宙・全て">
+  </div>
+</div>
+
+<script>
+  // =========================================================
+  // データ定義：ここにimageとリンクを追加していく
+  // =========================================================
+  const NODE_DATA = {
+    'node-center': {
+      img: 'image1-qveca.png',
+      label: '?→',
+      url: 'https://x.com/qveca_space',
+      color: { r: 140, g: 140, b: 140, a: 0.15 },
+      children: ['node-2', 'node-3', 'node-4'],
+    },
+    'node-2': {
+      img: 'image2-inside.png',
+      label: '内向きの?→',
+      url: 'https://www.threads.com/@yasuto_okamura',
+      color: { r: 80, g: 80, b: 80, a: 0.15 },
+      children: [], // 将来ここに派生nodeIDを追加
+    },
+    'node-3': {
+      img: 'image3-outside.png',
+      label: '外向きの?→',
+      url: 'https://www.instagram.com/yasuto_okamura',
+      color: { r: 220, g: 120, b: 60, a: 0.15 },
+      children: [],
+    },
+    'node-4': {
+      img: 'image4-infinity.png',
+      label: '世界・宇宙・全て',
+      url: null,
+      color: { r: 60, g: 130, b: 180, a: 0.15 },
+      children: [],
+    },
+  };
+
+  // =========================================================
+  // 状態管理
+  // =========================================================
+  let state = {
+    phase: 'init',       // 'init' | 'expanded' | 'focused'
+    centerNodeId: 'node-center',
+    satelliteNodeIds: [],
+    rotationAngle: 0,
+    wobbleT: 0,
+    animFrame: null,
+    clickCounts: {},
+    latestPositions: {},
+    rippleTimers: [],
+  };
+
+  const wobbleParams = {};
+
+  // =========================================================
+  // レイアウト計算
+  // =========================================================
+  function vmin() { return Math.min(window.innerWidth, window.innerHeight); }
+  function cx() { return window.innerWidth / 2; }
+  function cy() { return window.innerHeight / 2; }
+  function centerSize(expanded) { return vmin() * (expanded ? 0.28 : 0.78); }
+  function satelliteSize() { return vmin() * 0.22; }
+  function orbitRadius() { return vmin() * 0.34; }
+
+  function setNodeStyle(el, x, y, size) {
+    el.style.width  = size + 'px';
+    el.style.height = size + 'px';
+    el.style.left   = (x - size / 2) + 'px';
+    el.style.top    = (y - size / 2) + 'px';
+  }
+
+  function initWobble(id, index) {
+    if (!wobbleParams[id]) {
+      wobbleParams[id] = {
+        phase: (index * 2.1) % (Math.PI * 2),
+        speed: 0.009 + (index % 3) * 0.003,
+        amp:   5 + (index % 3) * 3,
+      };
+    }
+  }
+
+  // n個のsatelliteを等間隔に配置する基本角度
+  function baseAnglesFor(n) {
+    return Array.from({ length: n }, (_, i) => (i * 360 / n) - 90);
+  }
+
+  // =========================================================
+  // ベクトル描画
+  // =========================================================
+  function edgePoint(from, to, r) {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const len = Math.sqrt(dx*dx + dy*dy) || 1;
+    return {
+      x: from.x + (dx / len) * (r + 7),
+      y: from.y + (dy / len) * (r + 7),
+    };
+  }
+
+  function drawVectors(centerPos, satPositions) {
+    const svg = document.getElementById('vector-overlay');
+    const defs = svg.querySelector('defs');
+    svg.innerHTML = '';
+    svg.appendChild(defs);
+
+    function addPath(from, to, curved) {
+      const s = edgePoint(from, to, from.r);
+      const e = edgePoint(to, from, to.r);
+      let cp;
+      if (curved) {
+        const mx = (from.x + to.x) / 2;
+        const my = (from.y + to.y) / 2;
+        cp = { x: mx + (centerPos.x - mx) * 0.18, y: my + (centerPos.y - my) * 0.18 };
+      } else {
+        cp = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+      }
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M ${s.x} ${s.y} Q ${cp.x} ${cp.y} ${e.x} ${e.y}`);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', curved ? 'rgba(100,100,100,0.22)' : 'rgba(100,100,100,0.18)');
+      path.setAttribute('stroke-width', curved ? '1' : '0.8');
+      path.setAttribute('marker-start', 'url(#arrow-start)');
+      path.setAttribute('marker-end', 'url(#arrow-end)');
+      svg.appendChild(path);
+    }
+
+    // satellite間（隣接）
+    for (let i = 0; i < satPositions.length; i++) {
+      addPath(satPositions[i], satPositions[(i+1) % satPositions.length], true);
+    }
+    // 中心 ↔ 各satellite
+    satPositions.forEach(pos => addPath(centerPos, pos, false));
+  }
+
+  // =========================================================
+  // 波紋エフェクト
+  // =========================================================
+  const canvas = document.getElementById('ripple-canvas');
+  const ctx = canvas.getContext('2d');
+  let ripples = [];
+
+  function resizeCanvas() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  function spawnRipple(x, y, color) {
+    ripples.push({
+      x, y,
+      r: 0,
+      maxR: Math.max(window.innerWidth, window.innerHeight) * 1.4,
+      color,
+      life: 1,
+    });
+  }
+
+  function drawRipples() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ripples = ripples.filter(rp => rp.life > 0.01);
+    ripples.forEach(rp => {
+      rp.r   += 1.0;
+      rp.life = 1 - rp.r / rp.maxR;
+      const alpha = rp.color.a * rp.life;
+      const grad = ctx.createRadialGradient(rp.x, rp.y, 0, rp.x, rp.y, rp.r);
+      grad.addColorStop(0,    `rgba(${rp.color.r},${rp.color.g},${rp.color.b},${alpha})`);
+      grad.addColorStop(0.35, `rgba(${rp.color.r},${rp.color.g},${rp.color.b},${alpha * 0.6})`);
+      grad.addColorStop(1,    `rgba(${rp.color.r},${rp.color.g},${rp.color.b},0)`);
+      ctx.beginPath();
+      ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    });
+    requestAnimationFrame(drawRipples);
+  }
+
+  function scheduleRipple(nodeId) {
+    const delay = 2000 + Math.random() * 4000;
+    const timer = setTimeout(() => {
+      const pos = state.latestPositions[nodeId];
+      const color = NODE_DATA[nodeId]?.color;
+      if (pos && color) spawnRipple(pos.x, pos.y, color);
+      scheduleRipple(nodeId);
+    }, delay);
+    state.rippleTimers.push(timer);
+  }
+
+  function startRipples(nodeIds) {
+    state.rippleTimers.forEach(t => clearTimeout(t));
+    state.rippleTimers = [];
+    canvas.classList.add('visible');
+    nodeIds.forEach((id, i) => {
+      setTimeout(() => scheduleRipple(id), i * 600);
+    });
+  }
+
+  // =========================================================
+  // アニメーションループ
+  // =========================================================
+  function animLoop() {
+    if (state.phase === 'init') { requestAnimationFrame(animLoop); return; }
+
+    state.rotationAngle += 0.12;
+    state.wobbleT++;
+
+    const centerId  = state.centerNodeId;
+    const satIds    = state.satelliteNodeIds;
+    const n         = satIds.length;
+    const angles    = baseAnglesFor(n);
+    const r         = orbitRadius();
+    const cSize     = centerSize(true);
+    const sSize     = satelliteSize();
+    const pcx       = cx();
+    const pcy       = cy();
+
+    const centerPos = { x: pcx, y: pcy, r: cSize / 2 };
+    state.latestPositions[centerId] = centerPos;
+
+    const satPositions = satIds.map((id, i) => {
+      initWobble(id, i);
+      const wp  = wobbleParams[id];
+      const deg = (angles[i] + state.rotationAngle) * Math.PI / 180;
+      const wx  = Math.sin(state.wobbleT * wp.speed + wp.phase) * wp.amp;
+      const wy  = Math.cos(state.wobbleT * wp.speed * 1.3 + wp.phase) * wp.amp * 0.6;
+      const x   = pcx + r * Math.cos(deg) + wx;
+      const y   = pcy + r * Math.sin(deg) + wy;
+      const el  = document.getElementById(id);
+      setNodeStyle(el, x, y, sSize);
+      const pos = { x, y, r: sSize / 2 };
+      state.latestPositions[id] = pos;
+      return pos;
+    });
+
+    drawVectors(centerPos, satPositions);
+    requestAnimationFrame(animLoop);
+  }
+
+  // =========================================================
+  // フェーズ遷移
+  // =========================================================
+  function enterExpanded(centerId, satIds) {
+    state.phase          = 'expanded';
+    state.centerNodeId   = centerId;
+    state.satelliteNodeIds = satIds;
+    state.clickCounts    = {};
+
+    // 全nodeを非表示にしてから再構成
+    Object.keys(NODE_DATA).forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('visible');
+      el.style.pointerEvents = 'none';
+    });
+
+    // center
+    const cEl = document.getElementById(centerId);
+    const cSize = centerSize(true);
+    setNodeStyle(cEl, cx(), cy(), cSize);
+    cEl.style.zIndex = '10';
+
+    // satellites
+    satIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      setTimeout(() => el.classList.add('visible'), 200);
+    });
+
+    document.getElementById('vector-overlay').classList.add('visible');
+    startRipples([centerId, ...satIds]);
+  }
+
+  // =========================================================
+  // クリックハンドラ
+  // =========================================================
+  function handleCenterClick() {
+    if (state.phase === 'init') {
+      // 初回展開
+      const data   = NODE_DATA['node-center'];
+      const satIds = data.children;
+
+      // center縮小
+      const cEl = document.getElementById('node-center');
+      setNodeStyle(cEl, cx(), cy(), centerSize(true));
+
+      enterExpanded('node-center', satIds);
+      return;
+    }
+    // 展開済みの場合はURLへ
+    const url = NODE_DATA[state.centerNodeId]?.url;
+    if (url) window.open(url, '_blank');
+  }
+
+  function handleSatelliteClick(id) {
+    if (!state.clickCounts[id]) state.clickCounts[id] = 0;
+    state.clickCounts[id]++;
+
+    const data = NODE_DATA[id];
+    const hasChildren = data.children && data.children.length > 0;
+
+    if (state.clickCounts[id] === 1) {
+      if (hasChildren) {
+        // 派生展開：このnodeが中心に移動
+        // 現在の中心nodeをsatelliteとして含む
+        const prevCenter = state.centerNodeId;
+        const otherSats  = state.satelliteNodeIds.filter(s => s !== id);
+        const newSats    = [prevCenter, ...otherSats, ...data.children];
+
+        // imgとurlを既存nodeに設定（中心nodeのDOM再利用）
+        const cEl = document.getElementById('node-center');
+        cEl.querySelector('img').src = data.img;
+        cEl.onclick = () => handleCenterClick();
+
+        // 現在のsatellite nodeのDOMを新しい役割に割り当て
+        // （簡易実装：今は既存DOM nodeを再配置）
+        enterExpanded(id, newSats);
+        state.clickCounts[id] = 0;
+      }
+      // 子なしの場合は何もしない（2回目待ち）
+    } else if (state.clickCounts[id] >= 2) {
+      const url = data?.url;
+      if (url) window.open(url, '_blank');
+      if (id === 'node-4') window.open('https://ja.wikipedia.org/wiki/Special:RandomPage', '_blank');
+      state.clickCounts[id] = 0;
+    }
+  }
+
+  // =========================================================
+  // 初期化
+  // =========================================================
+  resizeCanvas();
+  drawRipples();
+
+  const cEl = document.getElementById('node-center');
+  setNodeStyle(cEl, cx(), cy(), centerSize(false));
+
+  requestAnimationFrame(animLoop);
+
+  window.addEventListener('resize', () => {
+    resizeCanvas();
+    if (state.phase !== 'init') {
+      setNodeStyle(document.getElementById(state.centerNodeId), cx(), cy(), centerSize(true));
+    } else {
+      setNodeStyle(document.getElementById('node-center'), cx(), cy(), centerSize(false));
+    }
+  });
+</script>
+</body>
+</html>
