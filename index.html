@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>?→</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #f8f8f6;
+      width: 100vw; height: 100vh;
+      overflow: hidden;
+    }
+    .stage { position: relative; width: 100vw; height: 100vh; }
+
+    #ripple-canvas {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1; opacity: 0;
+      transition: opacity 1.2s ease;
+    }
+    #ripple-canvas.visible { opacity: 1; }
+
+    #vector-overlay {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 3; opacity: 0;
+      transition: opacity 0.8s ease;
+    }
+    #vector-overlay.visible { opacity: 1; }
+
+    .node {
+      position: absolute;
+      border-radius: 50%;
+      overflow: visible;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .node img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      display: block;
+      pointer-events: none;
+      -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,1) 38%, rgba(0,0,0,0.5) 62%, rgba(0,0,0,0) 100%);
+      mask-image: radial-gradient(circle, rgba(0,0,0,1) 38%, rgba(0,0,0,0.5) 62%, rgba(0,0,0,0) 100%);
+    }
+    #node-center { z-index: 10; }
+    .satellite { z-index: 6; opacity: 0; pointer-events: none; }
+    .satellite.visible { opacity: 1; pointer-events: auto; }
+  </style>
+</head>
+<body>
+<div class="stage">
+  <canvas id="ripple-canvas"></canvas>
+  <svg id="vector-overlay" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow-end" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L7,3 z" fill="rgba(100,100,100,0.35)"/>
+      </marker>
+      <marker id="arrow-start" markerWidth="7" markerHeight="7" refX="2" refY="3" orient="auto-start-reverse">
+        <path d="M0,0 L0,6 L7,3 z" fill="rgba(100,100,100,0.35)"/>
+      </marker>
+    </defs>
+  </svg>
+  <div class="node" id="node-center"><img src="image1-qveca.png" alt="?→"></div>
+  <div class="node satellite" id="node-2"><img src="image2-inside.png" alt="内向きの?→"></div>
+  <div class="node satellite" id="node-3"><img src="image3-outside.png" alt="外向きの?→"></div>
+  <div class="node satellite" id="node-4"><img src="image4-infinity.png" alt="世界・宇宙・全て"></div>
+</div>
+
+<script>
+  // =========================================================
+  // データ定義
+  // =========================================================
+  const NODE_DATA = {
+    'node-center': {
+      img: 'image1-qveca.png',
+      url: 'https://x.com/qveca_space',
+      color: { r: 140, g: 140, b: 140, a: 0.15 },
+      children: ['node-2', 'node-3', 'node-4'],
+    },
+    'node-2': {
+      img: 'image2-inside.png',
+      url: 'https://www.threads.com/@yasuto_okamura',
+      color: { r: 80, g: 80, b: 80, a: 0.15 },
+      children: [],
+    },
+    'node-3': {
+      img: 'image3-outside.png',
+      url: 'https://www.instagram.com/yasuto_okamura',
+      color: { r: 220, g: 120, b: 60, a: 0.15 },
+      children: [],
+    },
+    'node-4': {
+      img: 'image4-infinity.png',
+      url: 'https://ja.wikipedia.org/wiki/Special:RandomPage',
+      color: { r: 60, g: 130, b: 180, a: 0.15 },
+      children: [],
+    },
+  };
+
+  // =========================================================
+  // 状態
+  // =========================================================
+  let state = {
+    phase: 'init',
+    centerNodeId: 'node-center',
+    satelliteNodeIds: [],
+    rotationAngle: 0,
+    wobbleT: 0,
+    clickCounts: {},
+    latestPositions: {},
+    rippleTimers: [],
+  };
+  const wobbleParams = {};
+
+  // =========================================================
+  // レイアウト
+  // =========================================================
+  function vmin() { return Math.min(window.innerWidth, window.innerHeight); }
+  function cx() { return window.innerWidth / 2; }
+  function cy() { return window.innerHeight / 2; }
+  function centerSize(expanded) { return vmin() * (expanded ? 0.28 : 0.78); }
+  function satelliteSize() { return vmin() * 0.22; }
+  function orbitRadius() { return vmin() * 0.34; }
+
+  function setNodeStyle(el, x, y, size) {
+    el.style.width  = size + 'px';
+    el.style.height = size + 'px';
+    el.style.left   = (x - size / 2) + 'px';
+    el.style.top    = (y - size / 2) + 'px';
+  }
+
+  function initWobble(id, index) {
+    if (!wobbleParams[id]) {
+      wobbleParams[id] = {
+        phase: (index * 2.1) % (Math.PI * 2),
+        speed: 0.009 + (index % 3) * 0.003,
+        amp:   5 + (index % 3) * 3,
+      };
+    }
+  }
+
+  function baseAnglesFor(n) {
+    return Array.from({ length: n }, (_, i) => (i * 360 / n) - 90);
+  }
+
+  // =========================================================
+  // ベクトル描画
+  // =========================================================
+  function drawVectors(centerPos, satPositions) {
+    const svg = document.getElementById('vector-overlay');
+    const defs = svg.querySelector('defs');
+    svg.innerHTML = '';
+    svg.appendChild(defs);
+
+    // satellite→satellite：見た目の縁62%
+    // center node：大きいので同じ比率だと端が見えにくい、少し外側に
+    const SAT_MASK    = 0.78;
+    const CENTER_MASK = 0.72;
+
+    function edgePt(from, to, r, isCenter) {
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const len = Math.sqrt(dx*dx + dy*dy) || 1;
+      const ratio = isCenter ? CENTER_MASK : SAT_MASK;
+      return {
+        x: from.x + (dx / len) * (r * ratio),
+        y: from.y + (dy / len) * (r * ratio),
+      };
+    }
+
+    function addPath(from, to, curved, fromIsCenter, toIsCenter) {
+      const s = edgePt(from, to, from.r, fromIsCenter);
+      const e = edgePt(to, from, to.r, toIsCenter);
+      let cp;
+      if (curved) {
+        const mx = (s.x + e.x) / 2;
+        const my = (s.y + e.y) / 2;
+        cp = { x: mx + (centerPos.x - mx) * 0.15, y: my + (centerPos.y - my) * 0.15 };
+      } else {
+        cp = { x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 };
+      }
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M ${s.x} ${s.y} Q ${cp.x} ${cp.y} ${e.x} ${e.y}`);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', curved ? 'rgba(100,100,100,0.22)' : 'rgba(100,100,100,0.18)');
+      path.setAttribute('stroke-width', '1');
+      path.setAttribute('marker-start', 'url(#arrow-start)');
+      path.setAttribute('marker-end', 'url(#arrow-end)');
+      svg.appendChild(path);
+    }
+
+    for (let i = 0; i < satPositions.length; i++) {
+      addPath(satPositions[i], satPositions[(i+1) % satPositions.length], true, false, false);
+    }
+    satPositions.forEach(pos => addPath(centerPos, pos, false, true, false));
+  }
+
+  // =========================================================
+  // 波紋
+  // =========================================================
+  const canvas = document.getElementById('ripple-canvas');
+  const ctx = canvas.getContext('2d');
+  let ripples = [];
+
+  function resizeCanvas() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  function spawnRipple(nodeId) {
+    const pos   = state.latestPositions[nodeId];
+    const color = NODE_DATA[nodeId]?.color;
+    if (!pos || !color) return;
+    ripples.push({
+      x: pos.x, y: pos.y,
+      r: 0,
+      maxR: Math.max(window.innerWidth, window.innerHeight) * 1.4,
+      color, life: 1,
+    });
+  }
+
+  function drawRipples() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ripples = ripples.filter(rp => rp.life > 0.01);
+    ripples.forEach(rp => {
+      rp.r   += 1.0;
+      rp.life = 1 - rp.r / rp.maxR;
+      const a = rp.color.a * rp.life;
+      const g = ctx.createRadialGradient(rp.x, rp.y, 0, rp.x, rp.y, rp.r);
+      g.addColorStop(0,    `rgba(${rp.color.r},${rp.color.g},${rp.color.b},${a})`);
+      g.addColorStop(0.35, `rgba(${rp.color.r},${rp.color.g},${rp.color.b},${a * 0.5})`);
+      g.addColorStop(1,    `rgba(${rp.color.r},${rp.color.g},${rp.color.b},0)`);
+      ctx.beginPath();
+      ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+      ctx.fillStyle = g;
+      ctx.fill();
+    });
+    requestAnimationFrame(drawRipples);
+  }
+
+  function scheduleRipple(nodeId) {
+    // 即座に一発目を発生
+    spawnRipple(nodeId);
+    function loop() {
+      const delay = 2500 + Math.random() * 4000;
+      const t = setTimeout(() => {
+        spawnRipple(nodeId);
+        loop();
+      }, delay);
+      state.rippleTimers.push(t);
+    }
+    loop();
+  }
+
+  function startRipples(nodeIds) {
+    state.rippleTimers.forEach(t => clearTimeout(t));
+    state.rippleTimers = [];
+    canvas.classList.add('visible');
+    nodeIds.forEach((id, i) => {
+      setTimeout(() => scheduleRipple(id), i * 500);
+    });
+  }
+
+  // =========================================================
+  // アニメーションループ
+  // =========================================================
+  function animLoop() {
+    requestAnimationFrame(animLoop);
+    if (state.phase === 'init') return;
+
+    state.rotationAngle += 0.12;
+    state.wobbleT++;
+
+    const centerId = state.centerNodeId;
+    const satIds   = state.satelliteNodeIds;
+    const n        = satIds.length;
+    const angles   = baseAnglesFor(n);
+    const r        = orbitRadius();
+    const cSize    = centerSize(true);
+    const sSize    = satelliteSize();
+    const pcx      = cx();
+    const pcy      = cy();
+
+    // 中心の微揺らぎ
+    const cwx = Math.sin(state.wobbleT * 0.007) * 3;
+    const cwy = Math.cos(state.wobbleT * 0.005) * 2;
+    const cEl = document.getElementById(centerId);
+    setNodeStyle(cEl, pcx + cwx, pcy + cwy, cSize);
+    const centerPos = { x: pcx + cwx, y: pcy + cwy, r: cSize / 2 };
+    state.latestPositions[centerId] = centerPos;
+
+    const satPositions = satIds.map((id, i) => {
+      initWobble(id, i);
+      const wp  = wobbleParams[id];
+      const deg = (angles[i] + state.rotationAngle) * Math.PI / 180;
+      const wx  = Math.sin(state.wobbleT * wp.speed + wp.phase) * wp.amp;
+      const wy  = Math.cos(state.wobbleT * wp.speed * 1.3 + wp.phase) * wp.amp * 0.6;
+      const x   = pcx + r * Math.cos(deg) + wx;
+      const y   = pcy + r * Math.sin(deg) + wy;
+      const el  = document.getElementById(id);
+      if (el) setNodeStyle(el, x, y, sSize);
+      const pos = { x, y, r: sSize / 2 };
+      state.latestPositions[id] = pos;
+      return pos;
+    });
+
+    drawVectors(centerPos, satPositions);
+  }
+
+  // =========================================================
+  // クリックハンドラ（onclick属性ではなくJSで管理）
+  // =========================================================
+  function bindClicks() {
+    // 全nodeのクリックを一元管理
+    document.getElementById('node-center').onclick = () => onNodeClick(state.centerNodeId);
+    ['node-2','node-3','node-4'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.onclick = () => onNodeClick(id);
+    });
+  }
+
+  function onNodeClick(id) {
+    if (state.phase === 'init') {
+      // 初回展開：image1をクリック
+      startExpand('node-center', NODE_DATA['node-center'].children);
+      return;
+    }
+
+    if (id === state.centerNodeId) {
+      // 中心をクリック → URL遷移
+      const url = NODE_DATA[id]?.url;
+      if (url) window.open(url, '_blank');
+      return;
+    }
+
+    // satellite クリック
+    if (!state.clickCounts[id]) state.clickCounts[id] = 0;
+    state.clickCounts[id]++;
+
+    const data = NODE_DATA[id];
+    const hasChildren = data.children && data.children.length > 0;
+
+    if (hasChildren && state.clickCounts[id] === 1) {
+      // 派生展開
+      const prevCenter = state.centerNodeId;
+      const otherSats  = state.satelliteNodeIds.filter(s => s !== id);
+      const newSats    = [prevCenter, ...otherSats, ...data.children];
+      startExpand(id, newSats);
+      state.clickCounts[id] = 0;
+    } else if (state.clickCounts[id] >= 2 || !hasChildren) {
+      // URL遷移
+      const url = data?.url;
+      if (url) window.open(url, '_blank');
+      state.clickCounts[id] = 0;
+    }
+  }
+
+  // =========================================================
+  // 展開アニメーション
+  // =========================================================
+  function startExpand(centerId, satIds) {
+    const cEl = document.getElementById('node-center');
+
+    if (state.phase === 'init') {
+      // image1を滑らかに縮小してから展開
+      cEl.style.transition = 'width 0.5s ease, height 0.5s ease, left 0.5s ease, top 0.5s ease';
+      setNodeStyle(cEl, cx(), cy(), centerSize(true));
+
+      setTimeout(() => {
+        cEl.style.transition = '';
+        enterExpanded(centerId, satIds);
+      }, 500);
+    } else {
+      enterExpanded(centerId, satIds);
+    }
+  }
+
+  function enterExpanded(centerId, satIds) {
+    state.phase            = 'expanded';
+    state.centerNodeId     = centerId;
+    state.satelliteNodeIds = satIds;
+    state.clickCounts      = {};
+
+    // 全satelliteを非表示
+    ['node-2','node-3','node-4'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('visible');
+      el.style.pointerEvents = 'none';
+      // imgを正しいものに更新
+      const img = el.querySelector('img');
+      if (img && NODE_DATA[id]) img.src = NODE_DATA[id].img;
+    });
+
+    // centerのimgを更新
+    const cEl = document.getElementById('node-center');
+    const cImg = cEl.querySelector('img');
+    if (cImg && NODE_DATA[centerId]) cImg.src = NODE_DATA[centerId].img;
+
+    // centerを即座に中心へ（transitionなし）
+    cEl.style.transition = 'none';
+    setNodeStyle(cEl, cx(), cy(), centerSize(true));
+    cEl.style.zIndex = '10';
+    requestAnimationFrame(() => { cEl.style.transition = ''; });
+
+    // satelliteを順にフェードイン
+    satIds.forEach((id, i) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      setTimeout(() => {
+        el.classList.add('visible');
+        el.style.pointerEvents = 'auto';
+      }, 150 + i * 120);
+    });
+
+    document.getElementById('vector-overlay').classList.add('visible');
+    startRipples([centerId, ...satIds]);
+
+    // クリックを再バインド
+    bindClicks();
+  }
+
+  // =========================================================
+  // 初期化
+  // =========================================================
+  resizeCanvas();
+  drawRipples();
+
+  const initEl = document.getElementById('node-center');
+  setNodeStyle(initEl, cx(), cy(), centerSize(false));
+  state.latestPositions['node-center'] = { x: cx(), y: cy(), r: centerSize(false) / 2 };
+
+  // 初期状態でもimage1の波紋を有効化
+  canvas.classList.add('visible');
+  scheduleRipple('node-center');
+
+  bindClicks();
+  requestAnimationFrame(animLoop);
+
+  window.addEventListener('resize', () => {
+    resizeCanvas();
+    const expanded = state.phase !== 'init';
+    setNodeStyle(document.getElementById('node-center'), cx(), cy(), centerSize(expanded));
+  });
+</script>
+</body>
+</html>
