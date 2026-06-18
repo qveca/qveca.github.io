@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>民主主義への問い</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:        #f8f8f6;
+      --ink:       #1a1a1a;
+      --ink-mid:   #4a4a4a;
+      --ink-faint: #999;
+      --rule:      rgba(0,0,0,0.08);
+      --max-w:     660px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Noto Serif JP', serif;
+      font-weight: 300;
+      line-height: 2.0;
+      padding: 0 24px;
+      opacity: 0;
+      animation: arrive 1.6s ease forwards;
+    }
+
+    @keyframes arrive {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 進捗バー */
+    .progress {
+      position: fixed; top: 0; left: 0;
+      height: 1px; width: 0%;
+      background: rgba(0,0,0,0.2);
+      z-index: 100;
+      transition: width 0.1s linear;
+    }
+
+    /* ヘッダー */
+    header {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 80px 0 64px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .doc-label {
+      font-family: 'IM Fell English SC', serif;
+      font-size: 10px;
+      letter-spacing: 0.24em;
+      color: var(--ink-faint);
+      display: block;
+      margin-bottom: 32px;
+    }
+
+    h1 {
+      font-size: clamp(28px, 6vw, 44px);
+      font-weight: 400;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+      margin-bottom: 20px;
+    }
+
+    .header-sub {
+      font-size: 13px;
+      color: var(--ink-faint);
+      letter-spacing: 0.06em;
+      line-height: 1.7;
+    }
+
+    /* 本文 */
+    main {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 64px 0 140px;
+    }
+
+    /* マニフェスト */
+    .manifesto {
+      padding: 32px 0 48px;
+      border-bottom: 1px solid var(--rule);
+      margin-bottom: 64px;
+    }
+
+    .manifesto-item {
+      display: grid;
+      grid-template-columns: 1px 1fr;
+      gap: 0 24px;
+      margin-bottom: 28px;
+      align-items: start;
+    }
+    .manifesto-item:last-child { margin-bottom: 0; }
+
+    .manifesto-line {
+      width: 1px;
+      height: 100%;
+      background: var(--rule);
+      margin-top: 6px;
+    }
+
+    .manifesto-text {
+      font-size: 14px;
+      color: var(--ink-mid);
+      line-height: 1.9;
+    }
+
+    /* 章 */
+    .chapter {
+      margin-bottom: 72px;
+    }
+
+    .chapter-eyebrow {
+      font-family: 'IM Fell English SC', serif;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      color: var(--ink-faint);
+      display: block;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .chapter-title {
+      font-size: clamp(18px, 3.5vw, 24px);
+      font-weight: 400;
+      line-height: 1.5;
+      margin-bottom: 28px;
+      letter-spacing: -0.01em;
+    }
+
+    p {
+      font-size: 15px;
+      line-height: 2.0;
+      color: var(--ink-mid);
+      margin-bottom: 20px;
+    }
+    p:last-child { margin-bottom: 0; }
+
+    /* 条件リスト */
+    .condition-list {
+      margin: 32px 0;
+      display: grid;
+      gap: 1px;
+      background: var(--rule);
+      border: 1px solid var(--rule);
+    }
+
+    .condition-item {
+      background: var(--bg);
+      padding: 18px 24px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .condition-symbol {
+      font-family: 'IM Fell English SC', serif;
+      font-size: 11px;
+      color: var(--ink-faint);
+      letter-spacing: 0.1em;
+      padding-top: 3px;
+    }
+
+    .condition-body {
+      font-size: 14px;
+      color: var(--ink-mid);
+      line-height: 1.8;
+    }
+
+    .condition-body strong {
+      font-weight: 500;
+      color: var(--ink);
+    }
+
+    /* 観測ブロック */
+    .observation-block {
+      margin: 36px 0;
+      padding: 28px 28px 28px 24px;
+      border-left: 1px solid var(--rule);
+      background: rgba(0,0,0,0.018);
+    }
+
+    .obs-label {
+      font-family: 'IM Fell English SC', serif;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--ink-faint);
+      display: block;
+      margin-bottom: 12px;
+    }
+
+    .obs-body {
+      font-size: 14px;
+      color: var(--ink-mid);
+      line-height: 1.85;
+      margin-bottom: 0;
+    }
+
+    /* 問いで終わる */
+    .closing-question {
+      margin-top: 80px;
+      padding-top: 48px;
+      border-top: 1px solid var(--rule);
+      text-align: center;
+    }
+
+    .question-symbol {
+      font-family: 'IM Fell English SC', serif;
+      font-size: clamp(48px, 10vw, 72px);
+      color: var(--ink);
+      display: block;
+      margin-bottom: 20px;
+      opacity: 0.7;
+    }
+
+    .question-text {
+      font-size: 15px;
+      color: var(--ink-mid);
+      line-height: 1.9;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* フッター */
+    footer {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 32px 0 64px;
+      border-top: 1px solid var(--rule);
+    }
+
+    .footer-note {
+      font-size: 11px;
+      color: var(--ink-faint);
+      letter-spacing: 0.1em;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<header>
+  <span class="doc-label">Observation Document — Draft v0.1</span>
+  <h1>民主主義への問い</h1>
+  <p class="header-sub">一つの観測結果として</p>
+</header>
+
+<main>
+
+  <!-- マニフェスト -->
+  <div class="manifesto">
+    <div class="manifesto-item">
+      <div class="manifesto-line"></div>
+      <p class="manifesto-text">この文書は、一地点からの観測結果として記録される。絶対的真理の宣言を意図しない。記述された内容は、執筆時点における観測であり、将来の観測によって更新され得る。</p>
+    </div>
+    <div class="manifesto-item">
+      <div class="manifesto-line"></div>
+      <p class="manifesto-text">究極的には、すべての人の幸福を希求する立場から書かれている。特定の集団を排除することを意図しない。いかなる立場の人との対話も、原則として排除しない。</p>
+    </div>
+    <div class="manifesto-item">
+      <div class="manifesto-line"></div>
+      <p class="manifesto-text">この文書を読むという行為そのものが、読んだ人固有の観測を生む。ここに記された問いへの答えを、この文書は持たない。</p>
+    </div>
+  </div>
+
+  <!-- 第一章 -->
+  <div class="chapter">
+    <span class="chapter-eyebrow">Chapter I</span>
+    <h2 class="chapter-title">民主主義とは、何か</h2>
+
+    <p>「民主主義」という言葉は、広く使われる。選挙が行われていれば、民主主義と呼ばれることが多い。しかし、選挙の存在は民主主義の必要条件であっても、十分条件ではないとする見方がある。</p>
+
+    <p>健全な民主主義が機能するためには、いくつかの条件が同時に成立している必要があるという観測がある。</p>
+
+    <div class="condition-list">
+      <div class="condition-item">
+        <span class="condition-symbol">i</span>
+        <p class="condition-body"><strong>牽制と均衡</strong>——権力が一箇所に集中することを防ぐ構造。立法・行政・司法の独立性、そして市民社会・メディアによる牽制機能。</p>
+      </div>
+      <div class="condition-item">
+        <span class="condition-symbol">ii</span>
+        <p class="condition-body"><strong>透明性と説明責任</strong>——意思決定のプロセスが開かれており、決定者がその根拠を市民に対して説明する義務を負うこと。</p>
+      </div>
+      <div class="condition-item">
+        <span class="condition-symbol">iii</span>
+        <p class="condition-body"><strong>異論の保護</strong>——多数派と異なる意見、批判的な声が、抑圧されることなく存在できる空間。</p>
+      </div>
+      <div class="condition-item">
+        <span class="condition-symbol">iv</span>
+        <p class="condition-body"><strong>情報へのアクセス</strong>——市民が判断を下すために必要な情報に、公平にアクセスできること。</p>
+      </div>
+    </div>
+
+    <p>これらの条件は、互いに独立しているのではなく、連動している。一つが弱体化すると、他にも影響が及ぶという観測がある。</p>
+  </div>
+
+  <!-- 第二章 -->
+  <div class="chapter">
+    <span class="chapter-eyebrow">Chapter II</span>
+    <h2 class="chapter-title">現在の観測</h2>
+
+    <p>第一章で整理した条件を物差しとして、現在の日本の政治状況を観測する。以下は、その断面の記録である。</p>
+
+    <div class="observation-block">
+      <span class="obs-label">Observation — 牽制と均衡</span>
+      <p class="obs-body">国会における審議時間の短縮、委員会を経ない案件処理、内閣人事局による官僚人事の集権化——これらは、牽制機能の形骸化として観測される事象である。それぞれの事象の評価は分かれるが、構造的な変化として記録に値する。</p>
+    </div>
+
+    <div class="observation-block">
+      <span class="obs-label">Observation — 透明性と説明責任</span>
+      <p class="obs-body">公文書の改ざん、統計データの修正、政治資金の不透明な流れ——これらは、説明責任の機能が十分に働いていないとする観測の根拠として挙げられることがある。問われるのは個別の事案ではなく、それを許容する構造の存在である。</p>
+    </div>
+
+    <div class="observation-block">
+      <span class="obs-label">Observation — 異論の空間</span>
+      <p class="obs-body">批判的な報道への圧力、特定の言説に対するトーンポリシング（内容ではなく表現様式を問題化することで議論を封じる手法）、「ご飯論法」と呼ばれる応答回避——これらは、異論が扱われる空間の質に関わる観測として記録される。</p>
+    </div>
+
+    <div class="observation-block">
+      <span class="obs-label">Observation — 情報へのアクセス</span>
+      <p class="obs-body">メディアの集中と資本構造、SNSにおける情報の断片化、複雑な政策情報が市民に届く経路の細さ——これらは、判断に必要な情報が公平に流通しているかという問いに関わる観測である。</p>
+    </div>
+
+    <p>これらの観測は、現時点における断面である。いずれも、異なる解釈が存在し得る。この文書は、ある一つの解釈を正解として提示しない。</p>
+  </div>
+
+  <!-- 第三章：問いの手渡し -->
+  <div class="closing-question">
+    <span class="question-symbol">?</span>
+    <p class="question-text">あなたが生きている社会は、あなたにとってどのようなものか。<br>その問いを、誰かに委ねる必要はない。</p>
+  </div>
+
+</main>
+
+<footer>
+  <p class="footer-note">この文書は観測結果として記録された。執筆時点における一断面であり、更新され得る。<br>本文書そのものも、観測の対象に含まれる。</p>
+  <p class="footer-note" style="margin-top: 16px;">© ?→</p>
+</footer>
+
+<script>
+  const bar = document.getElementById('progress');
+  window.addEventListener('scroll', () => {
+    const pct = window.scrollY / (document.body.scrollHeight - window.innerHeight) * 100;
+    bar.style.width = pct + '%';
+  });
+</script>
+
+</body>
+</html>

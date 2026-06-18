@@ -79,6 +79,7 @@
   <div class="node satellite" id="node-3"><div class="node-bg" id="bg-3"></div></div>
   <div class="node satellite" id="node-4"><div class="node-bg" id="bg-4"></div></div>
   <div class="node satellite" id="node-5"><div class="node-bg" id="bg-5"></div></div>
+  <div class="node satellite" id="node-6"><div class="node-bg" id="bg-6"></div></div>
 </div>
 
 <script>
@@ -133,10 +134,16 @@
       color: { r: 160, g: 100, b: 200, a: 0.15 },
       children: [],
     },
+    'node-6': {
+      img: 'image6-commons.png',
+      url: 'commons.html',
+      color: { r: 80, g: 140, b: 100, a: 0.15 },
+      children: [],
+    },
   };
 
   // 全node IDリスト
-  const ALL_NODE_IDS = ['node-center','node-2','node-3','node-4','node-5'];
+  const ALL_NODE_IDS = ['node-center','node-2','node-3','node-4','node-5','node-6'];
 
   // =========================================================
   // 状態
@@ -516,9 +523,11 @@
           el.style.pointerEvents = 'auto';
         }, 150 + i*120);
       });
-      // node-5は非表示のまま
+      // node-5,6は非表示のまま
       const n5 = document.getElementById('node-5');
       if (n5) { n5.classList.remove('visible'); n5.style.pointerEvents='none'; }
+      const n6 = document.getElementById('node-6');
+      if (n6) { n6.classList.remove('visible'); n6.style.pointerEvents='none'; }
 
       document.getElementById('vector-overlay').classList.add('visible');
       startRipples(['node-center','node-2','node-3','node-4']);
@@ -528,7 +537,7 @@
 
   function enterPhase3() {
     state.phase        = 'project';
-    state.innerNodeIds = ['node-center','node-5'];
+    state.innerNodeIds = ['node-center','node-5','node-6'];
     state.outerNodeIds = ['node-2','node-3','node-4'];
     state._satClicks   = {};
 
@@ -545,6 +554,14 @@
       n5.classList.add('visible');
       n5.style.pointerEvents = 'auto';
       n5.style.zIndex        = '6';
+    }
+
+    // node-6を表示
+    const n6 = document.getElementById('node-6');
+    if (n6) {
+      n6.classList.add('visible');
+      n6.style.pointerEvents = 'auto';
+      n6.style.zIndex        = '6';
     }
 
     // node-2,3,4はそのまま（位置はアニメーションループが制御）
