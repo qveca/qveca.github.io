@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>?→観測録</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #f8f8f6;
+      --ink:      #1a1a1a;
+      --ink-mid:  #555;
+      --ink-faint:#999;
+      --accent:   rgba(100,100,100,0.12);
+      --max-w:    640px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Noto Serif JP', serif;
+      font-weight: 300;
+      line-height: 1.9;
+      min-height: 100vh;
+      padding: 0 24px;
+      opacity: 0;
+      animation: fadeIn 1.4s ease forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── ヘッダー ── */
+    header {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 72px 0 56px;
+      border-bottom: 1px solid var(--accent);
+    }
+
+    .back-link {
+      display: inline-block;
+      font-family: 'IM Fell English SC', serif;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      color: var(--ink-faint);
+      text-decoration: none;
+      margin-bottom: 40px;
+      transition: color 0.3s;
+    }
+    .back-link:hover { color: var(--ink-mid); }
+    .back-link::before { content: '← '; }
+
+    .header-symbol {
+      font-family: 'IM Fell English SC', serif;
+      font-size: clamp(48px, 10vw, 72px);
+      letter-spacing: -0.02em;
+      line-height: 1;
+      color: var(--ink);
+      display: block;
+      margin-bottom: 16px;
+    }
+
+    .header-subtitle {
+      font-size: 13px;
+      color: var(--ink-faint);
+      letter-spacing: 0.08em;
+      line-height: 1.6;
+    }
+
+    .header-meta {
+      margin-top: 24px;
+      font-size: 11px;
+      color: var(--ink-faint);
+      letter-spacing: 0.12em;
+      font-family: 'IM Fell English SC', serif;
+    }
+
+    /* ── 本文 ── */
+    main {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 56px 0 120px;
+    }
+
+    /* 位置付け・原則 */
+    .preamble {
+      border-left: 1px solid var(--accent);
+      padding-left: 24px;
+      margin-bottom: 64px;
+    }
+    .preamble p {
+      font-size: 13px;
+      color: var(--ink-mid);
+      margin-bottom: 10px;
+      line-height: 1.8;
+    }
+    .preamble p:last-child { margin-bottom: 0; }
+
+    /* 原則リスト */
+    .principles {
+      margin-bottom: 64px;
+      display: grid;
+      gap: 1px;
+      background: var(--accent);
+      border: 1px solid var(--accent);
+    }
+    .principle-item {
+      background: var(--bg);
+      padding: 20px 24px;
+    }
+    .principle-label {
+      font-family: 'IM Fell English SC', serif;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--ink-faint);
+      display: block;
+      margin-bottom: 6px;
+    }
+    .principle-body {
+      font-size: 13px;
+      color: var(--ink-mid);
+      line-height: 1.7;
+    }
+
+    /* 章 */
+    .chapter {
+      margin-bottom: 64px;
+    }
+
+    .chapter-heading {
+      font-family: 'IM Fell English SC', serif;
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      color: var(--ink-faint);
+      margin-bottom: 32px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--accent);
+    }
+
+    .axiom {
+      margin-bottom: 28px;
+    }
+
+    .axiom-id {
+      font-family: 'IM Fell English SC', serif;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      color: var(--ink-faint);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .axiom-body {
+      font-size: 15px;
+      color: var(--ink);
+      line-height: 1.85;
+    }
+
+    /* ?→構造の特別表示 */
+    .structure-block {
+      margin: 40px 0;
+      padding: 32px;
+      background: rgba(0,0,0,0.025);
+      text-align: center;
+    }
+
+    .structure-symbol {
+      font-family: 'IM Fell English SC', serif;
+      font-size: clamp(28px, 6vw, 44px);
+      letter-spacing: 0.15em;
+      color: var(--ink);
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .structure-desc {
+      font-size: 12px;
+      color: var(--ink-faint);
+      letter-spacing: 0.08em;
+    }
+
+    /* 宇宙論の連鎖式 */
+    .chain {
+      font-family: 'IM Fell English SC', serif;
+      font-size: clamp(14px, 3vw, 18px);
+      letter-spacing: 0.1em;
+      color: var(--ink-mid);
+      text-align: center;
+      padding: 32px 0;
+      line-height: 2;
+    }
+
+    /* 草稿セクション */
+    .draft-notice {
+      font-size: 11px;
+      color: var(--ink-faint);
+      letter-spacing: 0.14em;
+      font-family: 'IM Fell English SC', serif;
+      padding: 16px 0;
+      border-top: 1px solid var(--accent);
+      border-bottom: 1px solid var(--accent);
+      margin-bottom: 48px;
+      text-align: center;
+    }
+
+    /* フッター */
+    footer {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 32px 0 64px;
+      border-top: 1px solid var(--accent);
+    }
+
+    .footer-note {
+      font-size: 11px;
+      color: var(--ink-faint);
+      letter-spacing: 0.1em;
+      line-height: 1.8;
+    }
+
+    /* スクロール進捗 */
+    .progress-bar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 1px;
+      background: rgba(100,100,100,0.3);
+      width: 0%;
+      z-index: 100;
+      transition: width 0.1s linear;
+    }
+  </style>
+</head>
+<body>
+
+<div class="progress-bar" id="progress"></div>
+
+<header>
+  <a href="index.html" class="back-link">?→</a>
+  <span class="header-symbol">?→<br>観測録</span>
+  <p class="header-subtitle">人が善く生きるとは？<br>問いから世界へ、観測による生成と漸近の記録</p>
+  <p class="header-meta">Version 0.3 &nbsp;·&nbsp; Draft &nbsp;·&nbsp; Observer: ?→</p>
+</header>
+
+<main>
+
+  <!-- 文書の位置付け -->
+  <div class="preamble">
+    <p>本観測録は、?→という観測プロセスについての観測結果を整理した記録である。</p>
+    <p>本観測録は完成版を提示することを目的としない。ここに記された内容は執筆時点における観測結果として記録される。本観測録そのものも観測対象に含まれ、将来的な観測によって更新され得る。重要なのは結論の固定ではなく、問いと観測を継続することである。</p>
+  </div>
+
+  <!-- 記述原則 -->
+  <div class="principles">
+    <div class="principle-item">
+      <span class="principle-label">Principle I — 観測性</span>
+      <p class="principle-body">本観測録における記述は、絶対的真理の宣言ではなく、執筆時点における観測結果として扱われる。</p>
+    </div>
+    <div class="principle-item">
+      <span class="principle-label">Principle II — 更新可能性</span>
+      <p class="principle-body">本観測録におけるすべての記述は更新可能である。</p>
+    </div>
+    <div class="principle-item">
+      <span class="principle-label">Principle III — 漸近性</span>
+      <p class="principle-body">本観測録は完成を目指すものではなく、より良い記述への漸近を試みるものである。</p>
+    </div>
+    <div class="principle-item">
+      <span class="principle-label">Principle IV — 自己適用</span>
+      <p class="principle-body">本観測録そのものも観測対象に含まれる。したがって本観測録は、自らが提示する更新原理の適用対象でもある。</p>
+    </div>
+    <div class="principle-item">
+      <span class="principle-label">Principle V — 観測時点</span>
+      <p class="principle-body">観測時点は原則としてISO 8601準拠のUTC時刻で記録する。必要に応じて現地時刻、版番号その他の補助情報を併記する。</p>
+    </div>
+  </div>
+
+  <!-- 第1章 -->
+  <div class="chapter">
+    <p class="chapter-heading">Chapter I &nbsp;—&nbsp; 基礎公理</p>
+    <div class="axiom">
+      <span class="axiom-id">1.1 &nbsp;?の公理</span>
+      <p class="axiom-body">現時点の観測では、すべては問いから始まるものとして理解できる。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">1.2 &nbsp;観測の公理</span>
+      <p class="axiom-body">現時点の観測では、世界は観測によって現れるものとして理解できる。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">1.3 &nbsp;生成の公理</span>
+      <p class="axiom-body">現時点の観測では、観測は世界を生成する働きを持つように見える。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">1.4 &nbsp;不完全性の公理</span>
+      <p class="axiom-body">現時点の観測では、あらゆる観測結果は暫定的である。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">1.5 &nbsp;漸近の公理</span>
+      <p class="axiom-body">現時点の観測では、真理は到達点というより方向性として理解できる。</p>
+    </div>
+  </div>
+
+  <!-- 第2章 -->
+  <div class="chapter">
+    <p class="chapter-heading">Chapter II &nbsp;—&nbsp; ?→構造</p>
+
+    <div class="structure-block">
+      <span class="structure-symbol">?</span>
+      <p class="structure-desc">未定義、未確定、未観測の状態</p>
+    </div>
+    <div class="structure-block">
+      <span class="structure-symbol">→</span>
+      <p class="structure-desc">観測結果として生じる方向性</p>
+    </div>
+    <div class="structure-block">
+      <span class="structure-symbol">?→</span>
+      <p class="structure-desc">問いによる世界生成の最小構造</p>
+    </div>
+  </div>
+
+  <!-- 草稿以降の注記 -->
+  <div class="draft-notice">以下は推敲・検証・更新のためのたたき台である</div>
+
+  <!-- 第3章 -->
+  <div class="chapter">
+    <p class="chapter-heading">Chapter III &nbsp;—&nbsp; 自己参照</p>
+    <div class="axiom">
+      <span class="axiom-id">3.1 &nbsp;観測者</span>
+      <p class="axiom-body">現時点の観測では、観測者は世界の外部ではなく世界の一部として現れる。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">3.2 &nbsp;自己生成</span>
+      <p class="axiom-body">観測は世界だけでなく観測者自身にも変化をもたらすように見える。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">3.3 &nbsp;自己参照循環</span>
+      <p class="axiom-body">主体は世界を観測し、その結果によって主体自身も変化する。この循環が継続的な生成を生むものとして理解できる。</p>
+    </div>
+  </div>
+
+  <!-- 第4章 -->
+  <div class="chapter">
+    <p class="chapter-heading">Chapter IV &nbsp;—&nbsp; 観測結果</p>
+    <div class="axiom">
+      <span class="axiom-id">4.1 &nbsp;観測結果の優位</span>
+      <p class="axiom-body">現時点の観測では、理論は観測結果を説明するための枠組みとして位置付けられる。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">4.2 &nbsp;理論の更新</span>
+      <p class="axiom-body">観測結果と理論の間に差異が観測された場合、理論は更新対象となる。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">4.3 &nbsp;本観測録の位置付け</span>
+      <p class="axiom-body">本観測録そのものも観測対象であり、更新され続ける。</p>
+    </div>
+  </div>
+
+  <!-- 第5章 -->
+  <div class="chapter">
+    <p class="chapter-heading">Chapter V &nbsp;—&nbsp; ?→記法</p>
+    <div class="axiom">
+      <span class="axiom-id">5.1 &nbsp;記法としての?→</span>
+      <p class="axiom-body">?→は理論であると同時に思考記法としても利用できる。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">5.2 &nbsp;基本形式</span>
+      <p class="axiom-body">? は問いを表し、→ は現時点での観測結果を表す。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">5.3 &nbsp;目的</span>
+      <p class="axiom-body">目的は答えの固定ではなく、観測過程の可視化にある。</p>
+    </div>
+  </div>
+
+  <!-- 第6章 -->
+  <div class="chapter">
+    <p class="chapter-heading">Chapter VI &nbsp;—&nbsp; 世界生成</p>
+    <div class="axiom">
+      <span class="axiom-id">6.1 &nbsp;世界</span>
+      <p class="axiom-body">現時点の観測では、世界は主体が観測した現実として理解できる。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">6.2 &nbsp;世界の成立</span>
+      <p class="axiom-body">問いは観測を生み、観測は意味を生み、意味は世界を形成するように見える。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">6.3 &nbsp;意味</span>
+      <p class="axiom-body">意味は発見されるだけでなく、生成されるものとしても現れる。</p>
+    </div>
+  </div>
+
+  <!-- 第7章 -->
+  <div class="chapter">
+    <p class="chapter-heading">Chapter VII &nbsp;—&nbsp; 意志と自由</p>
+    <div class="axiom">
+      <span class="axiom-id">7.1 &nbsp;意志</span>
+      <p class="axiom-body">現時点の観測では、意志はどの方向を観測し続けるかという選択として理解できる。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">7.2 &nbsp;方向性</span>
+      <p class="axiom-body">→は方向性の記号としても機能する。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">7.3 &nbsp;自由</span>
+      <p class="axiom-body">自由は問い続けられる状態として捉えられることがある。</p>
+    </div>
+  </div>
+
+  <!-- 第8章 -->
+  <div class="chapter">
+    <p class="chapter-heading">Chapter VIII &nbsp;—&nbsp; 愛と知性</p>
+    <div class="axiom">
+      <span class="axiom-id">8.1 &nbsp;愛</span>
+      <p class="axiom-body">現時点の観測では、愛は他者の世界生成を肯定する姿勢として理解できる。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">8.2 &nbsp;知性</span>
+      <p class="axiom-body">知性はより良い問いを生み出す能力として理解できる。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">8.3 &nbsp;調和</span>
+      <p class="axiom-body">愛と知性の調和は重要な観測対象として現れている。</p>
+    </div>
+  </div>
+
+  <!-- 第9章 -->
+  <div class="chapter">
+    <p class="chapter-heading">Chapter IX &nbsp;—&nbsp; 美と倫理</p>
+    <div class="axiom">
+      <span class="axiom-id">9.1 &nbsp;美</span>
+      <p class="axiom-body">美は調和として現れることがある。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">9.2 &nbsp;善</span>
+      <p class="axiom-body">現時点の観測では、善は愛と知性の調和として捉えられる。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">9.3 &nbsp;勇気</span>
+      <p class="axiom-body">勇気は不確実性の中で問い続ける力として理解できる。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">9.4 &nbsp;悪</span>
+      <p class="axiom-body">問いの停止は生成を阻害する方向性として現れることがある。</p>
+    </div>
+  </div>
+
+  <!-- 第10章 -->
+  <div class="chapter">
+    <p class="chapter-heading">Chapter X &nbsp;—&nbsp; 人生</p>
+    <div class="axiom">
+      <span class="axiom-id">10.1 &nbsp;人生の目的</span>
+      <p class="axiom-body">現時点の観測では、人生の目的は完成ではなく漸近として理解できる。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">10.2 &nbsp;理想</span>
+      <p class="axiom-body">理想は到達点ではなく方向性として現れる。</p>
+    </div>
+    <div class="axiom">
+      <span class="axiom-id">10.3 &nbsp;善く生きること</span>
+      <p class="axiom-body">善く生きるとは、問い、観測、更新を継続する営みとして理解できる。</p>
+    </div>
+  </div>
+
+  <!-- 第11章 -->
+  <div class="chapter">
+    <p class="chapter-heading">Chapter XI &nbsp;—&nbsp; ?→宇宙論</p>
+    <div class="axiom">
+      <span class="axiom-id"></span>
+      <p class="axiom-body">現時点の観測では、宇宙は固定された完成物ではなく、問いと観測の連鎖として理解できる。</p>
+    </div>
+    <div class="chain">
+      ? → 世界 → ? → 世界 → …
+    </div>
+    <div class="axiom">
+      <p class="axiom-body">問いは答えによって閉じられるとは限らない。問いによって新たな問いが開かれることがある。</p>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <p class="footer-note">本観測録は結論の固定を目的としない。<br>本観測録そのものも観測対象であり、今後の観測によって更新され続ける。</p>
+</footer>
+
+<script>
+  // スクロール進捗バー
+  const bar = document.getElementById('progress');
+  window.addEventListener('scroll', () => {
+    const scrolled = window.scrollY;
+    const total = document.body.scrollHeight - window.innerHeight;
+    bar.style.width = (scrolled / total * 100) + '%';
+  });
+</script>
+
+</body>
+</html>
