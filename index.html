@@ -161,6 +161,7 @@
     wobbleT: 0,
     latestPositions: {},
     rippleTimers: [],
+    emergingNodes: {},      // { nodeId: { startX, startY, startTime, duration } } 出現アニメーション中のノード
   };
   const wobbleParams = {};
 
@@ -199,6 +200,11 @@
 
   function baseAnglesFor(n) {
     return Array.from({ length: n }, (_, i) => (i * 360 / n) - 90);
+  }
+
+  // easeOutCubic: 開始が速く、終端でなめらかに減速する
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
   }
 
   // =========================================================
@@ -379,8 +385,22 @@
         const deg = (angles[i]+state.rotationAngle)*Math.PI/180;
         const wx  = Math.sin(state.wobbleT*wp.speed+wp.phase)*wp.amp;
         const wy  = Math.cos(state.wobbleT*wp.speed*1.3+wp.phase)*wp.amp*0.6;
-        const x   = pcx+r*Math.cos(deg)+wx;
-        const y   = pcy+r*Math.sin(deg)+wy;
+        const targetX = pcx+r*Math.cos(deg)+wx;
+        const targetY = pcy+r*Math.sin(deg)+wy;
+
+        let x = targetX, y = targetY;
+
+        // 出現アニメーション中なら、開始位置から目標位置へ補間する
+        const em = state.emergingNodes[id];
+        if (em) {
+          const elapsed = performance.now() - em.startTime;
+          const t = Math.min(elapsed / em.duration, 1);
+          const e = easeOutCubic(t);
+          x = em.startX + (targetX - em.startX) * e;
+          y = em.startY + (targetY - em.startY) * e;
+          if (t >= 1) delete state.emergingNodes[id];
+        }
+
         const el  = document.getElementById(id);
         if (el) setNodeStyle(el,x,y,sSize);
         const pos = { x,y,r:sSize/2 };
@@ -407,8 +427,22 @@
         const deg = (innerAngles[i]+state.innerRotationAngle)*Math.PI/180;
         const wx  = Math.sin(state.wobbleT*wp.speed+wp.phase)*wp.amp*0.5;
         const wy  = Math.cos(state.wobbleT*wp.speed*1.3+wp.phase)*wp.amp*0.4;
-        const x   = pcx+innerR*Math.cos(deg)+wx;
-        const y   = pcy+innerR*Math.sin(deg)+wy;
+        const targetX = pcx+innerR*Math.cos(deg)+wx;
+        const targetY = pcy+innerR*Math.sin(deg)+wy;
+
+        let x = targetX, y = targetY;
+
+        // 出現アニメーション中なら、開始位置から目標位置へ補間する
+        const em = state.emergingNodes[id];
+        if (em) {
+          const elapsed = performance.now() - em.startTime;
+          const t = Math.min(elapsed / em.duration, 1);
+          const e = easeOutCubic(t);
+          x = em.startX + (targetX - em.startX) * e;
+          y = em.startY + (targetY - em.startY) * e;
+          if (t >= 1) delete state.emergingNodes[id];
+        }
+
         const el  = document.getElementById(id);
         if (el) setNodeStyle(el,x,y,sSize);
         const pos = { x,y,r:sSize/2 };
@@ -514,13 +548,21 @@
       state.centerClickCount = 0;
       state._satClicks       = {};
 
-      // node-2,3,4 を表示
+      // node-centerの現在位置（出現の起点）
+      const centerPos = state.latestPositions['node-center'] || { x: cx(), y: cy() };
+
+      // node-2,3,4 を、node-centerの位置から出現させて滑らかに移動
       ['node-2','node-3','node-4'].forEach((id,i) => {
         const el = document.getElementById(id);
         if (!el) return;
         setTimeout(() => {
           el.classList.add('visible');
           el.style.pointerEvents = 'auto';
+          setNodeStyle(el, centerPos.x, centerPos.y, satelliteSize());
+          state.emergingNodes[id] = {
+            startX: centerPos.x, startY: centerPos.y,
+            startTime: performance.now(), duration: 700,
+          };
         }, 150 + i*120);
       });
       // node-5,6は非表示のまま
@@ -541,6 +583,9 @@
     state.outerNodeIds = ['node-2','node-3','node-4'];
     state._satClicks   = {};
 
+    // node-centerの現在位置（出現の起点）を取得
+    const centerPos = state.latestPositions['node-center'] || { x: cx(), y: cy() };
+
     // node-centerを通常表示に戻す（emptyクラスを外す）
     const cEl = document.getElementById('node-center');
     cEl.classList.remove('empty');
@@ -548,20 +593,30 @@
     cEl.style.pointerEvents = 'auto';
     cEl.style.zIndex        = '6';
 
-    // node-5を表示
+    // node-5を、node-centerの位置から出現させて滑らかに移動
     const n5 = document.getElementById('node-5');
     if (n5) {
       n5.classList.add('visible');
       n5.style.pointerEvents = 'auto';
       n5.style.zIndex        = '6';
+      setNodeStyle(n5, centerPos.x, centerPos.y, satelliteSize());
+      state.emergingNodes['node-5'] = {
+        startX: centerPos.x, startY: centerPos.y,
+        startTime: performance.now(), duration: 700,
+      };
     }
 
-    // node-6を表示
+    // node-6を、node-centerの位置から出現させて滑らかに移動
     const n6 = document.getElementById('node-6');
     if (n6) {
       n6.classList.add('visible');
       n6.style.pointerEvents = 'auto';
       n6.style.zIndex        = '6';
+      setNodeStyle(n6, centerPos.x, centerPos.y, satelliteSize());
+      state.emergingNodes['node-6'] = {
+        startX: centerPos.x, startY: centerPos.y,
+        startTime: performance.now(), duration: 700,
+      };
     }
 
     // node-2,3,4はそのまま（位置はアニメーションループが制御）
